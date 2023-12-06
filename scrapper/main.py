@@ -1,7 +1,8 @@
 from bs4 import BeautifulSoup
+import pandas as pd
 import requests
 from typing import List
-
+import json
 
 class RealEstateScrapper:
     def __init__(self, base_url: str):
@@ -36,10 +37,12 @@ class RealEstateScrapper:
             A list of urls to scrape
         """
 
-        urls = [self.base_url]
-        for i in range(2, num_pages + 1):
+        urls = []
+        urls.append(self.base_url)
+        for i in range(2, num_pages+1):
             urls.append(self.base_url + f"&pag={i}")
 
+        print('Urls to scrape: ', urls)
         return urls
 
     def get_individual_ad_main_info(self, url: str, soup: BeautifulSoup) -> dict:
@@ -174,7 +177,8 @@ class RealEstateScrapper:
             )
 
     def main_scrapper(self):
-        urls_to_scrape = self.paginate_urls(num_pages=20)
+        urls_to_scrape = self.paginate_urls(num_pages=4)
+        dict_to_return = []
 
         for url in urls_to_scrape:
             try:
@@ -200,17 +204,18 @@ class RealEstateScrapper:
 
                     # Pass the url to the specific ad scrapper
                     individual_details = self.individual_ad_scrapper(individual_ad_urls)
-                    if individual_details:
-                        return individual_details
-                    else:
-                        print("No data returned")
+                    dict_to_return.append(individual_details)
+                    # else:
+                    #     print("No data returned")
 
                 except Exception as e:
                     print(f"Exception: {e}")
                     raise Exception("The page urls scrapping failed")
-
+                
             except:
                 requests.exceptions.RequestException(f"The request to {url} failed")
+
+        return dict_to_return
 
 
 scrapper = RealEstateScrapper(
@@ -218,4 +223,7 @@ scrapper = RealEstateScrapper(
 )
 results = scrapper.main_scrapper()
 
-print(results)
+with open('data.json', 'w') as f:
+    json.dump(results[1], f)
+
+print('Done')

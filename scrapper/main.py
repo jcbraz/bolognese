@@ -81,7 +81,9 @@ class RealEstateScrapper:
                 elif "tipologie" in li["aria-label"]:
                     ad_main_info["type"] = li.text.strip()
                 else:
-                    ad_main_info["other_info"] = li.text.strip()
+                    ad_main_info["other_info"] = (
+                        li.text.strip() + " " + li["aria-label"]
+                    )
 
             return ad_main_info
 
@@ -115,7 +117,14 @@ class RealEstateScrapper:
                 right_column_content = raw_table.find_all("dd")
 
                 for dt, dd in zip(left_column_content, right_column_content):
-                    table_info[dt.text.strip()] = dd.text.strip()
+                    if dt.text.strip() == "altre caratteristiche":
+                        characteristics = dd.find_all("div")
+                        table_info[dt.text.strip()] = [
+                            characteristic.text.strip()
+                            for characteristic in characteristics
+                        ]
+                    else:
+                        table_info[dt.text.strip()] = dd.text.strip()
 
                 additional_info[table_title.text.strip().lower()] = table_info
 
@@ -177,7 +186,7 @@ class RealEstateScrapper:
             )
 
     def main_scrapper(self):
-        urls_to_scrape = self.paginate_urls(num_pages=4)
+        urls_to_scrape = self.paginate_urls(num_pages=80)
         dict_to_return = []
 
         for i, url in enumerate(urls_to_scrape):
@@ -205,7 +214,7 @@ class RealEstateScrapper:
 
                     # Pass the url to the specific ad scrapper
                     individual_details = self.individual_ad_scrapper(individual_ad_urls)
-                    if individual_ad_urls:
+                    if individual_details != None:
                         dict_to_return.append(individual_details)
 
                 except Exception as e:
@@ -218,12 +227,20 @@ class RealEstateScrapper:
         return dict_to_return
 
 
-scrapper = RealEstateScrapper(
-    "https://www.immobiliare.it/vendita-case/bologna/?criterio=rilevanza"
+sell_scrapper = RealEstateScrapper(
+    "https://www.immobiliare.it/vendita-case/emilia-romagna/?criterio=rilevanza"
 )
-results = scrapper.main_scrapper()
+sell_results = sell_scrapper.main_scrapper()
 
-with open("data.json", "w") as f:
-    json.dump(results[1], f)
+with open("selling.json", "w") as f:
+    json.dump(sell_results, f)
+
+rent_scrapper = RealEstateScrapper(
+    "https://www.immobiliare.it/affitto-case/emilia-romagna/?criterio=rilevanza"
+)
+rent_results = rent_scrapper.main_scrapper()
+
+with open("renting.json", "w") as f:
+    json.dump(rent_results, f)
 
 print("Done")

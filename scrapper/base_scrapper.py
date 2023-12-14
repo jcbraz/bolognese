@@ -3,6 +3,7 @@ import pandas as pd
 import requests
 from typing import List
 import json
+from json_to_pd import normalize_data, create_dataframe
 
 
 class RealEstateScrapper:
@@ -46,6 +47,22 @@ class RealEstateScrapper:
         return urls
 
     def get_individual_ad_main_info(self, url: str, soup: BeautifulSoup) -> dict:
+        """
+        Returns a dictionary containing the main info of the real estate ad
+
+        Parameters
+        ----------
+        url : str
+            The url to scrape
+
+        soup : BeautifulSoup
+            The BeautifulSoup object containing the html of the page to scrape
+
+        Returns
+        -------
+        ad_main_info : dict
+            A dictionary containing the main info of the real estate ad
+        """
         try:
             ad_main_info = dict()
 
@@ -91,6 +108,19 @@ class RealEstateScrapper:
             raise Exception("The page main info scrapping failed")
 
     def get_individual_ad_description(self, soup: BeautifulSoup) -> dict:
+        """
+        Returns a dictionary containing the description of the real estate ad
+
+        Parameters
+        ----------
+        soup : BeautifulSoup
+            The BeautifulSoup object containing the html of the page to scrape
+
+        Returns
+        -------
+        description_info : dict
+            A dictionary containing the description section information of the real estate ad
+        """
         try:
             description_info = dict()
             description_info["title"] = soup.find(
@@ -104,6 +134,19 @@ class RealEstateScrapper:
             raise Exception("The page description scrapping failed")
 
     def get_individual_ad_table_info(self, soup: BeautifulSoup) -> dict:
+        """
+        Returns a dictionary containing the table information of the real estate ad
+
+        Parameters
+        ----------
+        soup : BeautifulSoup
+            The BeautifulSoup object containing the html of the page to scrape
+
+        Returns
+        -------
+        additional_info : dict
+            A dictionary containing the table information of the real estate ad
+        """
         try:
             additional_info = dict()
 
@@ -171,7 +214,9 @@ class RealEstateScrapper:
 
                     single_page_content["details"] = ad_main_info
                     single_page_content["description"] = ad_description
-                    single_page_content["additional_info"] = ad_table_info
+                    # single_page_content["additional_info"] = ad_table_info
+                    for key, value in ad_table_info.items():
+                        single_page_content[key] = value
 
                     pages_content.append(single_page_content)
 
@@ -186,8 +231,21 @@ class RealEstateScrapper:
             )
 
     def main_scrapper(self):
-        urls_to_scrape = self.paginate_urls(num_pages=80)
-        dict_to_return = []
+        """
+        Returns a dataframe containing the scraped data
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        entire_ad_info_dict : List[dict]
+            A list of dictionaries containing the scraped data
+
+        """
+        urls_to_scrape = self.paginate_urls(num_pages=5)
+        entire_ad_info_dict = []
 
         for i, url in enumerate(urls_to_scrape):
             print(f"Scraping page {i+1}")
@@ -215,7 +273,7 @@ class RealEstateScrapper:
                     # Pass the url to the specific ad scrapper
                     individual_details = self.individual_ad_scrapper(individual_ad_urls)
                     if individual_details != None:
-                        dict_to_return.append(individual_details)
+                        entire_ad_info_dict.append(individual_details)
 
                 except Exception as e:
                     print(f"Exception: {e}")
@@ -224,16 +282,21 @@ class RealEstateScrapper:
             except:
                 requests.exceptions.RequestException(f"The request to {url} failed")
 
-        return dict_to_return
+        return entire_ad_info_dict
 
 
 sell_scrapper = RealEstateScrapper(
-    "https://www.immobiliare.it/vendita-case/emilia-romagna/?criterio=rilevanza"
+    "https://www.immobiliare.it/vendita-case/bologna/?criterio=rilevanza"
 )
 sell_results = sell_scrapper.main_scrapper()
 
-with open("selling.json", "w") as f:
+with open("selling-bologna.json", "w") as f:
     json.dump(sell_results, f)
+
+with open("selling-bologna.csv") as f:
+    df = create_dataframe(normalize_data(sell_results))
+    df.to_csv(f)
+
 
 rent_scrapper = RealEstateScrapper(
     "https://www.immobiliare.it/affitto-case/emilia-romagna/?criterio=rilevanza"
@@ -242,5 +305,10 @@ rent_results = rent_scrapper.main_scrapper()
 
 with open("renting.json", "w") as f:
     json.dump(rent_results, f)
+
+with open("renting.csv") as f:
+    df = create_dataframe(normalize_data(rent_results))
+    df.to_csv(f)
+
 
 print("Done")
